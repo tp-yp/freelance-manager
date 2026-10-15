@@ -209,19 +209,12 @@
                             class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">מחיר (₪) <span class="text-rose-500">*</span></label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400 font-medium">₪</span>
-                            <input type="number" id="projectPrice" min="0" required placeholder="0" 
-                                class="w-full pr-9 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">שעות עבודה התחלתיות</label>
-                        <input type="number" id="projectInitialHours" min="0" step="0.25" placeholder="0" 
-                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">מחיר (₪) <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400 font-medium">₪</span>
+                        <input type="number" id="projectPrice" min="0" required placeholder="0" 
+                            class="w-full pr-9 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
                     </div>
                 </div>
                 <div>
@@ -834,7 +827,6 @@
             document.getElementById('projectName').value = '';
             populateSelects(statusesList[0], purposesList[0]);
             document.getElementById('projectPrice').value = '';
-            document.getElementById('projectInitialHours').value = '';
             document.getElementById('projectNotes').value = '';
             document.getElementById('projectModal').classList.remove('hidden');
         };
@@ -847,7 +839,6 @@
             document.getElementById('projectName').value = project.name;
             populateSelects(project.status, project.purpose);
             document.getElementById('projectPrice').value = project.price;
-            document.getElementById('projectInitialHours').value = project.hoursWorked || 0;
             document.getElementById('projectNotes').value = project.notes || '';
             document.getElementById('projectModal').classList.remove('hidden');
         };
@@ -863,7 +854,6 @@
             const status = document.getElementById('projectStatus').value;
             const purpose = document.getElementById('projectPurpose').value;
             const price = parseFloat(document.getElementById('projectPrice').value) || 0;
-            const hoursWorked = parseFloat(document.getElementById('projectInitialHours').value) || 0;
             const notes = document.getElementById('projectNotes').value.trim();
             const nowIso = new Date().toISOString();
 
@@ -876,7 +866,6 @@
                     projects[index].name = name;
                     projects[index].purpose = purpose;
                     projects[index].price = price;
-                    projects[index].hoursWorked = hoursWorked;
                     projects[index].notes = notes;
                     if (oldStatus !== status) {
                         const oldIdx = statusesList.indexOf(oldStatus);
@@ -900,7 +889,7 @@
                     status,
                     purpose,
                     price,
-                    hoursWorked,
+                    hoursWorked: 0,
                     notes,
                     createdAt: nowIso,
                     statusChangedAt: nowIso
