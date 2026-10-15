@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>מערכת ניהול פרויקטים לפרילנסר</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="favicon.jpg">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Font: Heebo -->
@@ -688,7 +690,7 @@
 
             filtered.sort((a, b) => {
                 if (sortBy === 'createdAtDesc') return new Date(b.createdAt) - new Date(a.createdAt);
-                if (sortBy === 'createdAtAsc') return new Date(a.createdAt) - new Date(a.createdAt);
+                if (sortBy === 'createdAtAsc') return new Date(a.createdAt) - new Date(b.createdAt);
                 if (sortBy === 'name') return a.name.localeCompare(b.name, 'he');
                 if (sortBy === 'status') return a.status.localeCompare(b.status, 'he');
                 if (sortBy === 'purpose') return a.purpose.localeCompare(b.purpose, 'he');
@@ -870,7 +872,6 @@
                     if (oldStatus !== status) {
                         const oldIdx = statusesList.indexOf(oldStatus);
                         const newIdx = statusesList.indexOf(status);
-                        // If moved to a higher status index in the status pipeline
                         if (newIdx > oldIdx && oldIdx !== -1) {
                             statusUpgraded = true;
                         }
