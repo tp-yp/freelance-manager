@@ -109,7 +109,7 @@
                 <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </span>
-                <input type="text" id="searchInput" oninput="renderProjects()" placeholder="חיפוש לפי שם, הערות, סטטוס או ייעוד..." 
+                <input type="text" id="searchInput" autocomplete="off" name="project_search_query_no_autofill" oninput="renderProjects()" placeholder="חיפוש לפי שם, הערות, סטטוס או ייעוד..." 
                     class="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
             </div>
 
@@ -238,10 +238,17 @@
             <h4 class="text-lg font-bold text-slate-800 mb-2">הוספת שעות ידנית</h4>
             <p id="manualHoursProjectName" class="text-sm text-indigo-600 font-medium mb-4"></p>
             <input type="hidden" id="manualHoursProjectId">
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-slate-700 mb-1">הוסף כמות שעות</label>
-                <input type="number" id="manualHoursInput" min="0" step="0.25" placeholder="לדוגמה: 2.5" 
-                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">שעות</label>
+                    <input type="number" id="manualHoursInput" min="0" value="0" placeholder="0" 
+                        class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">דקות</label>
+                    <input type="number" id="manualMinutesInput" min="0" max="59" value="0" placeholder="0" 
+                        class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
             </div>
             <div class="flex items-center gap-2 justify-end">
                 <button type="button" onclick="closeManualHoursModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">ביטול</button>
@@ -302,46 +309,42 @@
     </div>
 
     <script>
-        const defaultStatuses = ["התקבל", "בעבודה", "שליחה ראשונית", "התקבלו הערות", "נשלח שוב", "נסגר, לא שולם", "שולם"];
-        const defaultPurposes = ["משרדים", "צבא", "מגורים", "חינוך", "אחר"];
+        // Global variables state initialization
+        const defaultStatuses = ['חדש', 'בעבודה', 'התקבלו הערות', 'שולם', 'נסגר, לא שולם'];
+        const defaultPurposes = ['עיצוב אתר', 'פיתוח', 'תחזוקה', 'ייעוץ', 'אחר'];
 
         let projects = [];
         let statusesList = [...defaultStatuses];
         let purposesList = [...defaultPurposes];
+        let activeTimers = {};
         let currentDynamicType = null;
-        let activeTimers = {}; // projectId -> { startTime, intervalId }
 
-        // GitHub Gist config
         let githubToken = localStorage.getItem('github_token') || '';
         let gistId = localStorage.getItem('gist_id') || '';
 
-        window.onload = function() {
-            // Populate modal inputs if present
-            document.getElementById('gistTokenInput').value = githubToken;
-            document.getElementById('gistIdInput').value = gistId;
+        function formatHoursAndMinutes(totalHoursDecimal) {
+            const totalMinutes = Math.round((Number(totalHoursDecimal) || 0) * 60);
+            const hrs = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            if (hrs === 0 && mins === 0) return "0 דש'";
+            if (hrs === 0) return `${mins} דק'`;
+            if (mins === 0) return `${hrs} ש'`;
+            return `${hrs} ש' ו-${mins} דק'`;
+        }
 
-            if (githubToken && gistId) {
-                updateSyncButtonUI(true);
-                fetchFromGistSilently();
-            } else {
-                updateSyncButtonUI(false);
-                loadLocalFallback();
-            }
-
-            // Global ticker for running timers display
-            setInterval(() => {
-                for (let id in activeTimers) {
-                    const timerEl = document.getElementById(`timer-display-${id}`);
-                    if (timerEl) {
-                        const elapsedSec = Math.floor((Date.now() - activeTimers[id].startTime) / 1000);
-                        const hrs = Math.floor(elapsedSec / 3600);
-                        const mins = Math.floor((elapsedSec % 3600) / 60);
-                        const secs = elapsedSec % 60;
-                        timerEl.innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-                    }
+        // Global ticker for running timers display
+        setInterval(() => {
+            for (let id in activeTimers) {
+                const timerEl = document.getElementById(`timer-display-${id}`);
+                if (timerEl) {
+                    const elapsedSec = Math.floor((Date.now() - activeTimers[id].startTime) / 1000);
+                    const hrs = Math.floor(elapsedSec / 3600);
+                    const mins = Math.floor((elapsedSec % 3600) / 60);
+                    const secs = elapsedSec % 60;
+                    timerEl.innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
                 }
-            }, 1000);
-        };
+            }
+        }, 1000);
 
         function updateSyncButtonUI(isConnected) {
             const btnText = document.getElementById('syncStatusText');
@@ -649,7 +652,7 @@
             document.getElementById('stat-active').innerText = activeCount;
             
             const totalHours = projects.reduce((sum, p) => sum + (Number(p.hoursWorked) || 0), 0);
-            document.getElementById('stat-hours').innerText = totalHours.toFixed(1) + " ש'";
+            document.getElementById('stat-hours').innerText = formatHoursAndMinutes(totalHours);
         }
 
         function getStatusBadgeClass(status) {
@@ -690,7 +693,7 @@
 
             filtered.sort((a, b) => {
                 if (sortBy === 'createdAtDesc') return new Date(b.createdAt) - new Date(a.createdAt);
-                if (sortBy === 'createdAtAsc') return new Date(a.createdAt) - new Date(b.createdAt);
+                if (sortBy === 'createdAtAsc') return new Date(a.createdAt) - new Date(a.createdAt);
                 if (sortBy === 'name') return a.name.localeCompare(b.name, 'he');
                 if (sortBy === 'status') return a.status.localeCompare(b.status, 'he');
                 if (sortBy === 'purpose') return a.purpose.localeCompare(b.purpose, 'he');
@@ -735,7 +738,7 @@
                             <div>
                                 <span class="block text-[10px] text-blue-500 font-medium">זמן עבודה</span>
                                 <div class="flex items-center gap-1.5">
-                                    <span class="text-sm font-bold text-blue-700">${(Number(project.hoursWorked) || 0).toFixed(2)} ש'</span>
+                                    <span class="text-sm font-bold text-blue-700">${formatHoursAndMinutes(project.hoursWorked)}</span>
                                     ${isRunning ? `<span id="timer-display-${project.id}" class="text-xs font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">00:00:00</span>` : ''}
                                 </div>
                             </div>
@@ -796,7 +799,8 @@
             if (!project) return;
             document.getElementById('manualHoursProjectId').value = project.id;
             document.getElementById('manualHoursProjectName').innerText = `פרויקט: ${project.name}`;
-            document.getElementById('manualHoursInput').value = '';
+            document.getElementById('manualHoursInput').value = '0';
+            document.getElementById('manualMinutesInput').value = '0';
             document.getElementById('manualHoursModal').classList.remove('hidden');
         };
 
@@ -806,20 +810,23 @@
 
         window.confirmManualHours = async function() {
             const id = document.getElementById('manualHoursProjectId').value;
-            const hoursToAdd = parseFloat(document.getElementById('manualHoursInput').value);
+            const hoursToAdd = parseInt(document.getElementById('manualHoursInput').value) || 0;
+            const minutesToAdd = parseInt(document.getElementById('manualMinutesInput').value) || 0;
 
-            if (isNaN(hoursToAdd) || hoursToAdd <= 0) {
-                showCustomMessage('נא להזין מספר שעות חיובי תקין', 'info');
+            if (hoursToAdd < 0 || minutesToAdd < 0 || (hoursToAdd === 0 && minutesToAdd === 0)) {
+                showCustomMessage('נא להזין כמות שעות או דקות תקינה', 'info');
                 return;
             }
 
+            const totalHoursToAdd = hoursToAdd + (minutesToAdd / 60);
+
             const project = projects.find(p => p.id === id);
             if (project) {
-                project.hoursWorked = (Number(project.hoursWorked) || 0) + hoursToAdd;
+                project.hoursWorked = (Number(project.hoursWorked) || 0) + totalHoursToAdd;
                 await saveData();
                 renderProjects();
                 closeManualHoursModal();
-                showCustomMessage(`נוספו בהצלחה ${hoursToAdd} שעות לפרויקט!`, 'success');
+                showCustomMessage(`נוספו בהצלחה ${hoursToAdd ? hoursToAdd + ' שעות ' : ''}${minutesToAdd ? minutesToAdd + ' דקות' : ''} לפרויקט!`, 'success');
             }
         };
 
@@ -872,6 +879,7 @@
                     if (oldStatus !== status) {
                         const oldIdx = statusesList.indexOf(oldStatus);
                         const newIdx = statusesList.indexOf(status);
+                        // If moved to a higher status index in the status pipeline
                         if (newIdx > oldIdx && oldIdx !== -1) {
                             statusUpgraded = true;
                         }
@@ -995,6 +1003,17 @@
             if (!str) return '';
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
+
+        // Initialize application on load
+        window.onload = function() {
+            loadLocalFallback();
+            if (githubToken && gistId) {
+                updateSyncButtonUI(true);
+                fetchFromGistSilently();
+            } else {
+                updateSyncButtonUI(false);
+            }
+        };
     </script>
 </body>
 </html>
